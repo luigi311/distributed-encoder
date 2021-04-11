@@ -30,8 +30,7 @@ EOF
 
 OUTPUT="output"
 INPUT="video.mkv"
-THREADS=-1
-TWOPASS=-1
+ERROR=-1
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -57,12 +56,8 @@ while :; do
             fi
             ;;
         -t | --threads)
-            if [ "$2" ]; then
-                THREADS="$2"
-                shift
-            else
-                die "ERROR: $1 requires a non-empty argument."
-            fi
+            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
+            ERROR=1
             ;;
         -f | --flag)
             if [ "$2" ]; then
@@ -73,25 +68,16 @@ while :; do
             fi
             ;;
         --twopass)
-            TWOPASS=1
+            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
+            ERROR=1
             ;;
         --pass1)
-            if [ "$2" ]; then
-                PASS1="$2"
-                TWOPASS=1
-                shift
-            else
-                die "ERROR: $1 requires a non-empty argument."
-            fi
+            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
+            ERROR=1
             ;;
         --pass2)
-            if [ "$2" ]; then
-                PASS2="$2"
-                TWOPASS=1
-                shift
-            else
-                die "ERROR: $1 requires a non-empty argument."
-            fi
+            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
+            ERROR=1
             ;;
         --extension)
             if [ "$2" ]; then
@@ -114,21 +100,11 @@ while :; do
     shift
 done
 
-if [ "$THREADS" -eq -1 ]; then
-    THREADS=$(( 4 < $(nproc) ? 4 : $(nproc) ))
-fi
-
-if [ "${TWOPASS}" -eq 1 ] && [ -n "${FLAG+x}" ]; then
-    if [ -z "${PASS1+x}" ]; then
-        PASS1="${FLAG}"
-    fi
-    if [ -z "${PASS2+x}" ]; then
-        PASS2="${FLAG}"
-    fi
+if [ "${ERROR}" -ne -1 ]; then
+    die ""
 fi
 
 FOLDER=$(basename -s ".${EXTENSION}" "${INPUT}")
-
 # Remove potentially bad characters in name
 FOLDER1=$(echo "$FOLDER" | sed ' s/--//g; s/=//g; s/ //g; s/:/_/g')
 # Get last 120 characters of flags for folder name to prevent length issues
@@ -138,17 +114,11 @@ else
     FOLDER="$FOLDER1"
 fi
 
-OUTPUTFILE="$OUTPUT/${FOLDER}_x265.mkv"
+OUTPUTFILE="$OUTPUT/${FOLDER}/${FOLDER}_av1an.mkv"
 
 mkdir -p "${OUTPUT}/${FOLDER}"
-BASE="ffmpeg -y -hide_banner -loglevel error -i ${INPUT} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --input - --y4m --log-level error --pools ${THREADS} ${FLAG}"
 
-if [ "$TWOPASS" -eq -1 ]; then
-    eval "${BASE}" -o "${OUTPUTFILE}"
-else
-    eval "${BASE}" --pass 1 --stats "$OUTPUT/${FOLDER}/${FOLDER}.log" -o /dev/null "${PASS1}" &&
-    eval "${BASE}" --pass 2 --stats "$OUTPUT/${FOLDER}/${FOLDER}.log" -o "${OUTPUTFILE}" "${PASS2}"
-fi
+av1an -i "${INPUT}" --output_file "${OUTPUTFILE}" ${FLAG}
 
 ERROR=$(ffprobe -hide_banner -loglevel error -i "${OUTPUTFILE}" 2>&1)
 if [ -n "$ERROR" ]; then
