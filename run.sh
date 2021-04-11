@@ -132,6 +132,14 @@ while :; do
         --docker)
             DOCKER="--docker"
             ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="--dockerimage $2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
         --) # End of all options.
             shift
             break
@@ -185,4 +193,4 @@ if [ "${ENC_WORKERS}" -eq -1 ]; then
 fi
 
 echo "Encoding"
-find "${INPUT}" -name "*.${EXTENSION}" | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input {}  --extension "${EXTENSION}" --output "${OUTPUT}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}"
+find "${INPUT}" -name "*.${EXTENSION}" | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input {}  --extension "${EXTENSION}" --output "${OUTPUT}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" "${DOCKERIMAGE}"

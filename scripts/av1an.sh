@@ -91,6 +91,15 @@ while :; do
         --docker)
             DOCKER=1
             ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="$2"
+                DOCKER=1
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
         --) # End of all options.
             shift
             break

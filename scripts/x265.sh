@@ -105,6 +105,15 @@ while :; do
         --docker)
             DOCKER=1
             ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="$2"
+                DOCKER=1
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
         --) # End of all options.
             shift
             break
@@ -152,7 +161,7 @@ if [ -n "${DOCKER+x}" ]; then
     FULLOUTPUT="/videos/output/${OUTPUTFILE}"
 fi
 
-BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i ${INPUT} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --input - --y4m --pools ${THREADS} ${FLAG}"
+BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i ${INPUT} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
 
 if [ "${TWOPASS}" -eq -1 ]; then
     eval "${BASE} -o ${FULLOUTPUT}\""
