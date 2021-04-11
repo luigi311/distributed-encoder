@@ -32,6 +32,7 @@ OUTPUT="output"
 INPUT="video.mkv"
 THREADS=-1
 TWOPASS=-1
+DOCKERIMAGE="registry.gitlab.com/luigi311/encoders-docker:latest"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -101,6 +102,18 @@ while :; do
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
+        --docker)
+            DOCKER=1
+            ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="$2"
+                DOCKER=1
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
         --) # End of all options.
             shift
             break
@@ -127,34 +140,41 @@ if [ "${TWOPASS}" -eq 1 ] && [ -n "${FLAG+x}" ]; then
     fi
 fi
 
-FOLDER=$(basename -s ".${EXTENSION}" "${INPUT}")
+INPUTFILE=$(basename -s ".${EXTENSION}" "${INPUT}")
 
 # Remove potentially bad characters in name
-FOLDER1=$(echo "$FOLDER" | sed ' s/--//g; s/=//g; s/ //g; s/:/_/g')
+OUTPUTBASE1=$(echo "$INPUTFILE" | sed ' s/--//g; s/=//g; s/ //g; s/:/_/g')
 # Get last 120 characters of flags for folder name to prevent length issues
-if [ "${#FOLDER1}" -ge 120 ]; then
-    FOLDER=${FOLDER1: -120}
+if [ "${#OUTPUTBASE1}" -ge 120 ]; then
+    OUTPUTBASE=${OUTPUTBASE1: -120}
 else
-    FOLDER="$FOLDER1"
+    OUTPUTBASE="$OUTPUTBASE1"
 fi
 
-OUTPUTFILE="$OUTPUT/${FOLDER}_x265.mkv"
+OUTPUTFILE="${OUTPUTBASE}_x265.h265"
+FULLOUTPUT="${OUTPUT}/${OUTPUTFILE}"
+mkdir -p "${OUTPUT}"
 
-mkdir -p "${OUTPUT}/${FOLDER}"
-BASE="ffmpeg -y -hide_banner -loglevel error -i ${INPUT} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --input - --y4m --log-level error --pools ${THREADS} ${FLAG}"
-
-if [ "$TWOPASS" -eq -1 ]; then
-    eval "${BASE}" -o "${OUTPUTFILE}"
-else
-    eval "${BASE}" --pass 1 --stats "$OUTPUT/${FOLDER}/${FOLDER}.log" -o /dev/null "${PASS1}" &&
-    eval "${BASE}" --pass 2 --stats "$OUTPUT/${FOLDER}/${FOLDER}.log" -o "${OUTPUTFILE}" "${PASS2}"
+if [ -n "${DOCKER+x}" ]; then
+    DOCKERRUN="docker run -v $(dirname "${INPUT}"):/videos/input -v ${OUTPUT}:/videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
+    INPUT="/videos/input/${INPUTFILE}.${EXTENSION}"
+    FULLOUTPUT="/videos/output/${OUTPUTFILE}"
 fi
 
-ERROR=$(ffprobe -hide_banner -loglevel error -i "${OUTPUTFILE}" 2>&1)
+BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i ${INPUT} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
+
+if [ "${TWOPASS}" -eq -1 ]; then
+    eval "${BASE} -o ${FULLOUTPUT}\""
+else
+    eval "${BASE} --pass 1 --stats ${OUTPUT}/${OUTPUTBASE}.log -o /dev/null ${PASS1}\"" &&
+    eval "${BASE} --pass 2 --stats ${OUTPUT}/${OUTPUTBASE}.log -o ${FULLOUTPUT} ${PASS2}\""
+fi
+
+ERROR=$(${DOCKERRUN} ffprobe -hide_banner -loglevel error -i "${FULLOUTPUT}" 2>&1)
 if [ -n "$ERROR" ]; then
-    rm -rf "${OUTPUT}/${FOLDER:?}"
+    rm -rf "${OUTPUT}/${OUTPUTBASE:?}*"
     die "${FLAG} failed"
 fi
 
-rm -f "${OUTPUT}/${FOLDER}/${FOLDER}.log"
-rm -f "${OUTPUT}/${FOLDER}/${FOLDER}.log.cutree"
+rm -f "${OUTPUT}/${OUTPUTBASE}.log"
+rm -f "${OUTPUT}/${OUTPUTBASE}.log.cutree"

@@ -31,6 +31,7 @@ EOF
 OUTPUT="output"
 INPUT="video.mkv"
 ERROR=-1
+DOCKERIMAGE="masterofzen/av1an:master"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -87,6 +88,18 @@ while :; do
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
+        --docker)
+            DOCKER=1
+            ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="$2"
+                DOCKER=1
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
         --) # End of all options.
             shift
             break
@@ -104,27 +117,35 @@ if [ "${ERROR}" -ne -1 ]; then
     die ""
 fi
 
-FOLDER=$(basename -s ".${EXTENSION}" "${INPUT}")
+INPUTFILE=$(basename -s ".${EXTENSION}" "${INPUT}")
+
 # Remove potentially bad characters in name
-FOLDER1=$(echo "$FOLDER" | sed ' s/--//g; s/=//g; s/ //g; s/:/_/g')
+OUTPUTBASE1=$(echo "$INPUTFILE" | sed ' s/--//g; s/=//g; s/ //g; s/:/_/g')
 # Get last 120 characters of flags for folder name to prevent length issues
-if [ "${#FOLDER1}" -ge 120 ]; then
-    FOLDER=${FOLDER1: -120}
+if [ "${#OUTPUTBASE1}" -ge 120 ]; then
+    OUTPUTBASE=${OUTPUTBASE1: -120}
 else
-    FOLDER="$FOLDER1"
+    OUTPUTBASE="$OUTPUTBASE1"
 fi
 
-OUTPUTFILE="$OUTPUT/${FOLDER}/${FOLDER}_av1an.mkv"
+OUTPUTFILE="${OUTPUTBASE}_av1an.mkv"
+FULLOUTPUT="${OUTPUT}/${OUTPUTFILE}"
+mkdir -p "${OUTPUT}"
+COMMAND="av1an"
 
-mkdir -p "${OUTPUT}/${FOLDER}"
+if [ -n "${DOCKER+x}" ]; then
+    DOCKERRUN="docker run -v $(dirname "${INPUT}"):/videos/input -v ${OUTPUT}:/videos/output -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
+    INPUT="/videos/input/${INPUTFILE}.${EXTENSION}"
+    FULLOUTPUT="/videos/output/${OUTPUTFILE}"
+    COMMAND=""
+fi
 
-av1an -i "${INPUT}" --output_file "${OUTPUTFILE}" ${FLAG}
+BASE="${DOCKERRUN} ${COMMAND} -i ${INPUT} --output_file ${FULLOUTPUT} ${FLAG}"
 
-ERROR=$(ffprobe -hide_banner -loglevel error -i "${OUTPUTFILE}" 2>&1)
+eval "${BASE}"
+
+ERROR=$(${DOCKERRUN} ffprobe -hide_banner -loglevel error -i "${FULLOUTPUT}" 2>&1)
 if [ -n "$ERROR" ]; then
-    rm -rf "${OUTPUT}/${FOLDER:?}"
+    rm -rf "${OUTPUT}/${OUTPUTBASE:?}*"
     die "${FLAG} failed"
 fi
-
-rm -f "${OUTPUT}/${FOLDER}/${FOLDER}.log"
-rm -f "${OUTPUT}/${FOLDER}/${FOLDER}.log.cutree"
