@@ -29,10 +29,9 @@ EOF
 
 OUTPUT="output"
 EXTENSION="mkv"
-THREADS=-1
-MANUAL=0
+ENC_WORKERS=-1
 ENCODER="x265"
-SUPPORTED_ENCODERS="x265"
+SUPPORTED_ENCODERS="x265:av1an"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -57,7 +56,7 @@ while :; do
                 die "ERROR: $1 requires a non-empty option argument."
             fi
             ;;
-        --enc)
+        -e | --enc)
             if [ "$2" ]; then
                 ENCODER="$2"
                 # https://stackoverflow.com/questions/8063228/how-do-i-check-if-a-variable-exists-in-a-list-in-bash#comment91727359_46564084
@@ -69,10 +68,9 @@ while :; do
                 die "ERROR: $1 requires a non-empty option argument."
             fi
             ;;
-        -e | --encworkers)
+        --encworkers)
             if [ "$2" ]; then
                 ENC_WORKERS="$2"
-                MANUAL=1
                 shift
             else
                 die "ERROR: $1 requires a non-empty option argument."
@@ -80,7 +78,8 @@ while :; do
             ;;
         -t | --threads)
             if [ "$2" ]; then
-                THREADS="$2"
+                THREAD="$2"
+                THREADS="--threads ${THREAD}"
                 shift
             else
                 die "ERROR: $1 requires a non-empty option argument."
@@ -147,17 +146,23 @@ if [ -z "${INPUT+x}" ]; then
     die "Input not set"
 fi
 
-if [ "${THREADS}" -eq -1 ]; then
+if [ -z "${THREADS+x}" ]; then
     if [ "${ENCODER}" == "aomenc" ]; then
-        THREADS=4
+        THREAD=4
+        THREADS="--threads ${THREAD}"
     elif [ "${ENCODER}" == "svt-av1" ]; then
-        THREADS=18
+        THREAD=4
+        THREADS="--threads ${THREAD}"
     elif [ "${ENCODER}" == "x265" ]; then
-        THREADS=4
+        THREAD=4
+        THREADS="--threads ${THREAD}"
     elif [ "${ENCODER}" == "x264" ]; then
-        THREADS=4
+        THREAD=4
+        THREADS="--threads ${THREAD}"
+    elif [ "${ENCODER}" == "av1an" ]; then
+        THREAD=$(nproc)
     else
-        die "Threads not set"
+        die "ERROR: thread not set"
     fi
 fi
 
@@ -171,10 +176,10 @@ if [ -n "${TWOPASS+x}" ] && [ -n "${FLAGVAR+x}" ]; then
 fi
 
 # Set job amounts for encoding
-if [ "${MANUAL}" -ne 1 ]; then
-    ENC_WORKERS=$(( (100 / "${THREADS}") ))
+if [ "${ENC_WORKERS}" -eq -1 ]; then
+    ENC_WORKERS=$(( (100 / "${THREAD}") ))
     ENC_WORKERS="${ENC_WORKERS}%"
 fi
 
 echo "Encoding"
-find "${INPUT}" -name "*.${EXTENSION}" | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input {}  --extension "${EXTENSION}" --output "${OUTPUT}" --threads "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}"
+find "${INPUT}" -name "*.${EXTENSION}" | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input {}  --extension "${EXTENSION}" --output "${OUTPUT}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}"
