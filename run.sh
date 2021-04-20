@@ -140,6 +140,17 @@ while :; do
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
+        --docker)
+            DOCKER="--docker"
+            ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="--dockerimage $2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
         --) # End of all options.
             shift
             break
