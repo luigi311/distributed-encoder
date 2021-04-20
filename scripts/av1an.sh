@@ -9,7 +9,7 @@ die() {
 help() {
     help="$(cat <<EOF
 
-Usage: 
+Usage:
     ./encoder.sh [options]
 Example:
     ./encoder.sh -i video.mkv -f "--kf-max-dist=360 --enable-keyframe-filtering=0" -t 8 --q --quality 30 
@@ -135,6 +135,7 @@ COMMAND="av1an"
 
 if [ -n "${DOCKER+x}" ]; then
     DOCKERRUN="docker run -v $(dirname "${INPUT}"):/videos/input -v ${OUTPUT}:/videos/output -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
+    DOCKERPROBE="docker run -v $(dirname "${INPUT}"):/videos/input -v ${OUTPUT}:/videos/output -w /videos/output --user $(id -u):$(id -g) -i --rm luigi311/encoders-docker:latest"
     INPUT="/videos/input/${INPUTFILE}.${EXTENSION}"
     FULLOUTPUT="/videos/output/${OUTPUTFILE}"
     COMMAND=""
@@ -144,7 +145,7 @@ BASE="${DOCKERRUN} ${COMMAND} -i ${INPUT} --output_file ${FULLOUTPUT} ${FLAG}"
 
 eval "${BASE}"
 
-ERROR=$(${DOCKERRUN} ffprobe -hide_banner -loglevel error -i "${FULLOUTPUT}" 2>&1)
+ERROR=$(${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i "${FULLOUTPUT}" 2>&1)
 if [ -n "$ERROR" ]; then
     rm -rf "${OUTPUT}/${OUTPUTBASE:?}*"
     die "${FLAG} failed"
