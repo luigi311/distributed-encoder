@@ -132,12 +132,11 @@ OUTPUTFILE="${OUTPUTBASE}_av1an.mkv"
 FULLOUTPUT="${OUTPUT}/${OUTPUTFILE}"
 mkdir -p "${OUTPUT}"
 COMMAND="av1an"
-
+echo "output: $OUTPUT"
 if [ -n "${DOCKER+x}" ]; then
     INPUTDIRECTORY=$(dirname "$INPUT")
-    OUTPUTDIRECTORY=$(dirname "$OUTPUT")
-    DOCKERRUN="docker run -v \"${INPUTDIRECTORY}:/videos/input\" -v \"${OUTPUTDIRECTORY}:/videos/output\" -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
-    DOCKERPROBE="docker run -v \"${INPUTDIRRCTORY}:/videos/input\" -v \"${OUTPUTDIRECTORY}:/videos/output\" -w /videos/output --user $(id -u):$(id -g) -i --rm luigi311/encoders-docker:latest"
+    DOCKERRUN="docker run -v \"${INPUTDIRECTORY}:/videos/input\" -v \"${OUTPUT}:/videos/output\" -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
+    DOCKERPROBE="docker run -v \"${OUTPUT}:/videos/output\" --user $(id -u):$(id -g) -i --rm luigi311/encoders-docker:latest"
     INPUT="/videos/input/${INPUTFILE}.${EXTENSION}"
     FULLOUTPUT="/videos/output/${OUTPUTFILE}"
     COMMAND=""
@@ -147,7 +146,8 @@ BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT}\" --output_file \"${FULLOUTPUT}\" ${
 
 eval "${BASE}"
 
-ERROR=$(${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i "${FULLOUTPUT}" 2>&1)
+FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
+ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     rm -rf "${OUTPUT}/${OUTPUTBASE:?}*"
     die "${INPUT} failed"
