@@ -127,7 +127,7 @@ while :; do
             DISTRIBUTE="--sshloginfile .. --workdir . --sshdelay 0.2"
             ;;
         --resume)
-            RESUME="--resume"
+            RESUME="--resume --retry-failed"
             ;;
         --docker)
             DOCKER="--docker"
