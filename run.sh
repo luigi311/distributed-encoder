@@ -127,7 +127,18 @@ while :; do
             DISTRIBUTE="--sshloginfile .. --workdir . --sshdelay 0.2"
             ;;
         --resume)
-            RESUME="--resume"
+            RESUME="--resume --retry-failed"
+            ;;
+        --docker)
+            DOCKER="--docker"
+            ;;
+        --dockerimage)
+            if [ "$2" ]; then
+                DOCKERIMAGE="--dockerimage $2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
             ;;
         --docker)
             DOCKER="--docker"
