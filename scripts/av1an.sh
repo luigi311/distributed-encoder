@@ -132,7 +132,7 @@ OUTPUTFILE="${OUTPUTBASE}_av1an.mkv"
 FULLOUTPUT="${OUTPUT}/${OUTPUTFILE}"
 mkdir -p "${OUTPUT}"
 COMMAND="av1an"
-echo "output: $OUTPUT"
+
 if [ -n "${DOCKER+x}" ]; then
     INPUTDIRECTORY=$(dirname "$INPUT")
     DOCKERRUN="docker run -v \"${INPUTDIRECTORY}:/videos/input\" -v \"${OUTPUT}:/videos/output\" -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
