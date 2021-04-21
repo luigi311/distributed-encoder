@@ -129,20 +129,20 @@ else
 fi
 
 OUTPUTFILE="${OUTPUTBASE}_av1an.mkv"
-FULLOUTPUT="${OUTPUT}/${OUTPUTFILE}"
-mkdir -p "${OUTPUT}"
+FULLOUTPUT="\"${OUTPUT}/${OUTPUTFILE}\""
+mkdir -p "\"${OUTPUT}\""
 COMMAND="av1an"
 
 if [ -n "${DOCKER+x}" ]; then
     INPUTDIRECTORY=$(dirname "$INPUT")
-    DOCKERRUN="docker run -v \"${INPUTDIRECTORY}:/videos/input\" -v \"${OUTPUT}:/videos/output\" -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
+    DOCKERRUN="docker run -v ${INPUTDIRECTORY}:/videos/input -v \"${OUTPUT}:/videos/output\" -w /videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
     DOCKERPROBE="docker run -v \"${OUTPUT}:/videos/output\" --user $(id -u):$(id -g) -i --rm luigi311/encoders-docker:latest"
     INPUT="/videos/input/${INPUTFILE}.${EXTENSION}"
     FULLOUTPUT="/videos/output/${OUTPUTFILE}"
     COMMAND=""
 fi
 
-BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT}\" --output_file \"${FULLOUTPUT}\" ${FLAG}"
+BASE="${DOCKERRUN} ${COMMAND} -i ${INPUT} --output_file \"${FULLOUTPUT}\" ${FLAG}"
 
 eval "${BASE}"
 
