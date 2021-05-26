@@ -181,17 +181,17 @@ if [ -n "${DOCKER+x}" ]; then
 fi
 
 log "Encoding"
-BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i ${INPUTENCODE} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
+BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i \"${INPUTENCODE}\" -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
 if [ "${TWOPASS}" -eq -1 ]; then
     eval "${BASE} -o ${FULLOUTPUT}.h265\""
 else
     eval "${BASE} --pass 1 --stats \"${FULLOUTPUT}.log\" -o /dev/null ${PASS1}\"" &&
-    eval "${BASE} --pass 2 --stats \"${FULLOUTPUT}.log\" -o ${FULLOUTPUT}.h265 ${PASS2}\""
+    eval "${BASE} --pass 2 --stats \"${FULLOUTPUT}.log\" -o \"${FULLOUTPUT}.h265\" ${PASS2}\""
 fi
 log "Encoding DONE"
 
 log "Validating encode"
-FFPROBE="${DOCKERPROBE} ffmpeg -y -hide_banner -loglevel error -i ${FULLOUTPUT}.h265 -c copy ${FULLOUTPUT}.mp4 2>&1"
+FFPROBE="${DOCKERPROBE} ffmpeg -y -hide_banner -loglevel error -i \"${FULLOUTPUT}.h265\" -c copy \"${FULLOUTPUT}.mp4\" 2>&1"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"

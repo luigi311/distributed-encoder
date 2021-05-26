@@ -131,10 +131,10 @@ if [ -n "${DOCKER+x}" ]; then
     FULLOUTPUT="/videos/input1/de_final_${BASE2FILE}.mkv"
 fi
 
-BASE="${DOCKERRUN} ${COMMAND} -i ${INPUT1} -i ${INPUT2} ${FLAG} ${FULLOUTPUT}"
+BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT1}\" -i \"${INPUT2}\" ${FLAG} ${FULLOUTPUT}"
 eval "${BASE}"
 
-FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i ${FULLOUTPUT} 2>&1"
+FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     #rm -rf "${INPUTDIRECTORY}/${OUTPUTBASE:?}*"

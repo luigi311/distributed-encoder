@@ -135,17 +135,15 @@ if [ "${ERROR}" -ne -1 ]; then
     die ""
 fi
 
-INPUTDIRECTORY=$(dirname "$INPUT")
+INPUTDIRECTORY=$(dirname "${INPUT}")
 INPUTFILE=$(basename "${INPUT}")
 BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
-
 # Run prepared first
 echo "Working on ${INPUTFILE}" > "${LOGFILE}"
 log "Preparing"
 scripts/prepare.sh --input "${INPUT}" "${DOCKERFLAG}" --ffmpegimage "${FFMPEGIMAGE}"
 log "Preparing DONE"
-
 
 FULLOUTPUT="${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
 INPUTENCODE="${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
@@ -159,13 +157,13 @@ if [ -n "${DOCKER+x}" ]; then
     COMMAND=""
 fi
 
-BASE="${DOCKERRUN} ${COMMAND} -i ${INPUTENCODE} --output_file ${FULLOUTPUT} ${FLAG}"
+BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUTENCODE}\" --output_file \"${FULLOUTPUT}\" ${FLAG}"
 log "Encoding"
 eval "${BASE}"
 log "Encoding DONE"
 
 log "Validating encode"
-FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i ${FULLOUTPUT} 2>&1"
+FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     #rm -rf "${INPUTDIRECTORY}/${OUTPUTBASE:?}*"

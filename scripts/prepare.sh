@@ -86,7 +86,6 @@ BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 
 FULLOUTPUT="${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
 COMMAND="ffmpeg"
-
 FLAG=" -hide_banner -loglevel error -y -map 0:v:0 -c:v libx264 -crf 0 -preset ultrafast"
 
 if [ -n "${DOCKER+x}" ]; then
@@ -95,10 +94,10 @@ if [ -n "${DOCKER+x}" ]; then
     FULLOUTPUT="/videos/de_prepared_${BASEFILE}.mkv"
 fi
 
-BASE="${DOCKERRUN} ${COMMAND} -i ${INPUT} ${FLAG} ${FULLOUTPUT}"
+BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT}\" ${FLAG} \"${FULLOUTPUT}\""
 eval "${BASE}"
 
-FFPROBE="${DOCKERRUN} ffprobe -hide_banner -loglevel error -i ${FULLOUTPUT} 2>&1"
+FFPROBE="${DOCKERRUN} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     #rm -rf "${INPUTDIRECTORY}/${OUTPUTBASE:?}*"
