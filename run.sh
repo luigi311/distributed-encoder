@@ -12,26 +12,37 @@ Description
 Usage:
     ./run.sh [options]
 Example:
-    ./run.sh 
-General Options:
-    -h/--help                       Print this help screen
-    -i/--input          [file]      Video source to use                                             (default video.mkv)
-    -o/--output         [folder]    Output folder to place all encoded videos and stats files       (default output)
-    -e/--encworkers     [number]    Number of encodes to run simultaneously                         (defaults threads/encoding threads)
-    --resume                        Resume option for parallel, will use encoding.log and vmaf.log  (default false)
-Encoding Settings:
-    --enc               [string]    Encoder to test, supports aomenc and x265                       (default aomenc)
-    -f/--flags          [file]      File with different flags to test. Each line is a seperate test (default arguments.aomenc)
+    ./run.sh -i /home/luigi311/Videos --extension mkv -enc av1an -f "-enc x265 -v ' -p slower --crf 25 -D 10 -F 2 ' --target_quality 94 --vmaf --mkvmerge" --docker --distribute
+Options:
+    -h/--help                   Print this help screen
+    -i/--input        [file]    Video source to use                                                        (default video.mkv)
+    -e/--enc          [string]  Encoder to use                                                             (default av1an)
+    --encworkers      [number]  Amount of encoders to run in parallel on each machine                      (default encoding threads/cpu threads)
+    -t/--threads      [number]  Amount of threads to use in encoder                                        (default av1an:nproc, x265:4)
+    --extension       [string]  Video extension of videos to encode                                        (default mkv)
+    --twopass                   Enable two pass encoding for x265                                          (default false)
+    --pass1           [string]  Flags to use for first pass when encoding, enables twopass
+    --pass2           [string]  Flags to use for second pass when encoding, enables twopass
+    -f/--flag         [string]  Flags for encoder to use
+    --distribute                Parallelize across multiple computers based on ~/.parallel/sshloginfile    (default false)
+    --resume                    Resume option for parallel, will use encoding.log and vmaf.log             (default false)
+    --docker                    Enable the use of docker to run all commands                               (default false)
+    --encoderimage    [string]  Docker image to use for encoder, enables docker                            (default av1an:masterofzen/av1an:master,x265:luigi311/encoders-docker:latest)
+    --ffmpegimage     [string]  Docker image to use for validation, prepare and combine, enables docker    (defualt luigi311/encoders-docker:latest)
+    --audioflags      [string]  Flags to use when encoding audio during the combine stage                  (default -c:a flac)
+    --audiostreams    [string]  Audio streams to keep and encode during hte combine stage, comma seperated (default 0)
 EOF
 )"
     echo "$help"
 }
 
-OUTPUT="output"
 EXTENSION="mkv"
 ENC_WORKERS=-1
-ENCODER="x265"
+ENCODER="av1an"
 SUPPORTED_ENCODERS="x265:av1an"
+AUDIOFLAGS="-c:a flac"
+AUDIOSTREAMS="0"
+FFMPEGIMAGE="luigi311/encoders-docker:latest"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -42,15 +53,7 @@ while :; do
             ;;
         -i | --input)
             if [ "$2" ]; then
-                INPUT="$2"
-                shift
-            else
-                die "ERROR: $1 requires a non-empty option argument."
-            fi
-            ;;
-        -o | --output)
-            if [ "$2" ]; then
-                OUTPUT="$2"
+                INPUT="${2%/}"
                 shift
             else
                 die "ERROR: $1 requires a non-empty option argument."
@@ -127,25 +130,41 @@ while :; do
             DISTRIBUTE="--sshloginfile .. --workdir . --sshdelay 0.2"
             ;;
         --resume)
-            RESUME="--resume --retry-failed"
+            RESUME="--resume --resume-failed"
             ;;
         --docker)
             DOCKER="--docker"
             ;;
-        --dockerimage)
+        --encoderimage)
             if [ "$2" ]; then
-                DOCKERIMAGE="--dockerimage $2"
+                ENOCDERMANUAL=1
+                ENCODERIMAGE="$2"
+                DOCKER="--docker"
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
-        --docker)
-            DOCKER="--docker"
-            ;;
-        --dockerimage)
+        --ffmpegimage)
             if [ "$2" ]; then
-                DOCKERIMAGE="--dockerimage $2"
+                FFMPEGIMAGE="$2"
+                DOCKER="--docker"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --audioflags)
+            if [ "$2" ]; then
+                AUDIOFLAGS="$2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --audiostreams)
+            if [ "$2" ]; then
+                AUDIOSTREAMS="$2"
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
@@ -168,21 +187,21 @@ if [ -z "${INPUT+x}" ]; then
     die "Input not set"
 fi
 
+if [ -z "${ENOCDERMANUAL+x}" ]; then
+    if [ "${ENCODER}" == "av1an" ]; then
+        ENCODERIMAGE="masterofzen/av1an:master"
+    else
+        ENCODERIMAGE="luigi311/encoders-docker:latest"
+    fi
+fi
+
 if [ -z "${THREADS+x}" ]; then
-    if [ "${ENCODER}" == "aomenc" ]; then
-        THREAD=4
-        THREADS="--threads ${THREAD}"
-    elif [ "${ENCODER}" == "svt-av1" ]; then
-        THREAD=4
-        THREADS="--threads ${THREAD}"
-    elif [ "${ENCODER}" == "x265" ]; then
-        THREAD=4
-        THREADS="--threads ${THREAD}"
-    elif [ "${ENCODER}" == "x264" ]; then
-        THREAD=4
+    if [ "${ENCODER}" == "x265" ]; then
+        THREAD="$(( 4 < $(nproc) ? 4 : $(nproc) ))"
         THREADS="--threads ${THREAD}"
     elif [ "${ENCODER}" == "av1an" ]; then
         THREAD=$(nproc)
+        ENC_WORKERS=1
     else
         die "ERROR: thread not set"
     fi
@@ -203,5 +222,4 @@ if [ "${ENC_WORKERS}" -eq -1 ]; then
     ENC_WORKERS="${ENC_WORKERS}%"
 fi
 
-echo "Encoding"
-find "${INPUT}" -name "*.${EXTENSION}" | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input \"{}\"  --extension "\"${EXTENSION}\"" --output "\"${OUTPUT}\"" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" "${DOCKERIMAGE}"
+find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input "\"{}\""  "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
