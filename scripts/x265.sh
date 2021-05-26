@@ -6,6 +6,10 @@ die() {
     exit 1
 }
 
+log() {
+    printf '[%s] %s\n' "$(date)" "$1" >> "${LOGFILE}"
+}
+
 help() {
     help="$(cat <<EOF
 
@@ -28,11 +32,14 @@ EOF
             echo "$help"
 }
 
-OUTPUT="output"
-INPUT="video.mkv"
+OUTPUT="$(pwd)/output"
 THREADS=-1
 TWOPASS=-1
-DOCKERIMAGE="registry.gitlab.com/luigi311/encoders-docker:latest"
+ERROR=-1
+ENCODERIMAGE="masterofzen/av1an:master"
+FFMPEGIMAGE="luigi311/encoders-docker:latest"
+AUDIOFLAGS="-c:a flac"
+AUDIOSTREAMS="0"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -44,14 +51,6 @@ while :; do
         -i | --input)
             if [ "$2" ]; then
                 INPUT="$2"
-                shift
-            else
-                die "ERROR: $1 requires a non-empty argument."
-            fi
-            ;;
-        -o | --output)
-            if [ "$2" ]; then
-                OUTPUT="$2"
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
@@ -94,21 +93,37 @@ while :; do
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
-        --extension)
+        --docker)
+            DOCKER=1
+            DOCKERFLAG="--docker"
+            ;;
+        --encoderimage)
             if [ "$2" ]; then
-                EXTENSION="$2"
+                ENCODERIMAGE="$2"
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
-        --docker)
-            DOCKER=1
-            ;;
-        --dockerimage)
+        --ffmpegimage)
             if [ "$2" ]; then
-                DOCKERIMAGE="$2"
-                DOCKER=1
+                FFMPEGIMAGE="$2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --audioflags)
+            if [ "$2" ]; then
+                AUDIOFLAGS="$2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --audiostreams)
+            if [ "$2" ]; then
+                AUDIOSTREAMS="$2"
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
@@ -127,8 +142,12 @@ while :; do
     shift
 done
 
+if [ -z "${INPUT+x}" ]; then
+    die "Input not set"
+fi
+
 if [ "$THREADS" -eq -1 ]; then
-    THREADS=$(( 4 < $(nproc) ? 4 : $(nproc) ))
+    THREADS="$(nproc)" 
 fi
 
 if [ "${TWOPASS}" -eq 1 ] && [ -n "${FLAG+x}" ]; then
@@ -140,41 +159,54 @@ if [ "${TWOPASS}" -eq 1 ] && [ -n "${FLAG+x}" ]; then
     fi
 fi
 
-INPUTFILE=$(basename -s ".${EXTENSION}" "${INPUT}")
+INPUTDIRECTORY=$(dirname "$INPUT")
+INPUTFILE=$(basename "${INPUT}")
+BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
+LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
 
-# Remove potentially bad characters in name
-OUTPUTBASE1=$(echo "$INPUTFILE" | sed ' s/--//g; s/=//g; s/ //g; s/:/_/g')
-# Get last 120 characters of flags for folder name to prevent length issues
-if [ "${#OUTPUTBASE1}" -ge 120 ]; then
-    OUTPUTBASE=${OUTPUTBASE1: -120}
-else
-    OUTPUTBASE="$OUTPUTBASE1"
-fi
+# Run prepared first
+echo "Working on ${INPUTFILE}" > "${LOGFILE}"
+log "Preparing"
+scripts/prepare.sh --input "${INPUT}" "${DOCKERFLAG}" --ffmpegimage "${FFMPEGIMAGE}"
+log "Preparing DONE"
 
-OUTPUTFILE="${OUTPUTBASE}_x265.h265"
-FULLOUTPUT="${OUTPUT}/${OUTPUTFILE}"
-mkdir -p "${OUTPUT}"
+INPUTENCODE="${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
+FULLOUTPUT="${INPUTDIRECTORY}/de_encoded_${BASEFILE}"
 
 if [ -n "${DOCKER+x}" ]; then
-    DOCKERRUN="docker run -v $(dirname "${INPUT}"):/videos/input -v ${OUTPUT}:/videos/output --user $(id -u):$(id -g) -i --rm ${DOCKERIMAGE}"
-    INPUT="/videos/input/${INPUTFILE}.${EXTENSION}"
-    FULLOUTPUT="/videos/output/${OUTPUTFILE}"
+    DOCKERRUN="docker run --privileged -v ${INPUTDIRECTORY}:/videos -w /videos --user $(id -u):$(id -g) -i --rm ${ENCODERIMAGE}"
+    DOCKERPROBE="docker run --privileged -v ${INPUTDIRECTORY}:/videos -w /videos --user $(id -u):$(id -g) -i --rm ${FFMPEGIMAGE}"
+    INPUTENCODE="/videos/de_prepared_${BASEFILE}.mkv"
+    FULLOUTPUT="/videos/de_encoded_${BASEFILE}"
 fi
 
-BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i ${INPUT} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
-
+log "Encoding"
+BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i ${INPUTENCODE} -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
 if [ "${TWOPASS}" -eq -1 ]; then
-    eval "${BASE} -o ${FULLOUTPUT}\""
+    eval "${BASE} -o ${FULLOUTPUT}.h265\""
 else
-    eval "${BASE} --pass 1 --stats ${OUTPUT}/${OUTPUTBASE}.log -o /dev/null ${PASS1}\"" &&
-    eval "${BASE} --pass 2 --stats ${OUTPUT}/${OUTPUTBASE}.log -o ${FULLOUTPUT} ${PASS2}\""
+    eval "${BASE} --pass 1 --stats \"${FULLOUTPUT}.log\" -o /dev/null ${PASS1}\"" &&
+    eval "${BASE} --pass 2 --stats \"${FULLOUTPUT}.log\" -o ${FULLOUTPUT}.h265 ${PASS2}\""
 fi
+log "Encoding DONE"
 
-ERROR=$(${DOCKERRUN} ffprobe -hide_banner -loglevel error -i "${FULLOUTPUT}" 2>&1)
+log "Validating encode"
+FFPROBE="${DOCKERPROBE} ffmpeg -y -hide_banner -loglevel error -i ${FULLOUTPUT}.h265 -c copy ${FULLOUTPUT}.mp4 2>&1"
+ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
-    rm -rf "${OUTPUT}/${OUTPUTBASE:?}*"
-    die "${FLAG} failed"
+    rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
+    die "${INPUT} failed ${ERROR}"
 fi
+log "Validating DONE"
 
-rm -f "${OUTPUT}/${OUTPUTBASE}.log"
-rm -f "${OUTPUT}/${OUTPUTBASE}.log.cutree"
+log "Combine"
+scripts/combine.sh --input1 "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4" --input2 "${INPUT}" --audioflags "${AUDIOFLAGS}" --audiostreams "${AUDIOSTREAMS}" "${DOCKERFLAG}" --ffmpegimage "${FFMPEGIMAGE}"
+log "Combine DONE"
+
+log "Cleanup"
+rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.log"
+rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.log.cutree"
+rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.h265"
+rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
+rm -f "${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
+log "Cleanuo DONE"
