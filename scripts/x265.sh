@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# exit when any command fails
+set -e
+# keep track of the last executed command
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+# echo an error message before exiting
+trap 'trap_die' EXIT
+
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 die() {
     printf '%s\n' "$1" >&2
@@ -7,7 +14,18 @@ die() {
 }
 
 log() {
-    printf '[%s] %s\n' "$(date)" "$1" >> "${LOGFILE}"
+    printf '[%s] X265: %s\n' "$(date)" "$1" >> "${LOGFILE}"
+}
+
+trap_die() {
+    EXIT_CODE="$?"
+    if [ "${EXIT_CODE}" -eq 0 ]; then
+        log "DONE"
+    else
+        MESSAGE="ERROR \"${last_command}\" command filed with exit code ${EXIT_CODE}."
+        echo "X265: ${MESSAGE}"
+        log "${MESSAGE}"
+    fi
 }
 
 help() {
@@ -113,22 +131,6 @@ while :; do
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
-        --audioflags)
-            if [ "$2" ]; then
-                AUDIOFLAGS="$2"
-                shift
-            else
-                die "ERROR: $1 requires a non-empty argument."
-            fi
-            ;;
-        --audiostreams)
-            if [ "$2" ]; then
-                AUDIOSTREAMS="$2"
-                shift
-            else
-                die "ERROR: $1 requires a non-empty argument."
-            fi
-            ;;
         --) # End of all options.
             shift
             break
@@ -164,12 +166,6 @@ INPUTFILE=$(basename "${INPUT}")
 BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
 
-# Run prepared first
-echo "Working on ${INPUTFILE}" > "${LOGFILE}"
-log "Preparing"
-scripts/prepare.sh --input "${INPUT}" "${DOCKERFLAG}" --ffmpegimage "${FFMPEGIMAGE}"
-log "Preparing DONE"
-
 INPUTENCODE="${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
 FULLOUTPUT="${INPUTDIRECTORY}/de_encoded_${BASEFILE}"
 
@@ -183,15 +179,19 @@ fi
 log "Encoding"
 BASE="${DOCKERRUN} /bin/bash -c \"ffmpeg -y -hide_banner -loglevel error -i \"${INPUTENCODE}\" -strict -1 -pix_fmt yuv420p10le -f yuv4mpegpipe - | x265 --log-level error --input - --y4m --pools ${THREADS} ${FLAG}"
 if [ "${TWOPASS}" -eq -1 ]; then
+    log "${BASE} -o ${FULLOUTPUT}.h265\""
     eval "${BASE} -o ${FULLOUTPUT}.h265\""
 else
+    log "${BASE} --pass 1 --stats \"${FULLOUTPUT}.log\" -o /dev/null ${PASS1}\"" &&
     eval "${BASE} --pass 1 --stats \"${FULLOUTPUT}.log\" -o /dev/null ${PASS1}\"" &&
+    log "${BASE} --pass 2 --stats \"${FULLOUTPUT}.log\" -o \"${FULLOUTPUT}.h265\" ${PASS2}\""
     eval "${BASE} --pass 2 --stats \"${FULLOUTPUT}.log\" -o \"${FULLOUTPUT}.h265\" ${PASS2}\""
 fi
 log "Encoding DONE"
 
 log "Validating encode"
 FFPROBE="${DOCKERPROBE} ffmpeg -y -hide_banner -loglevel error -i \"${FULLOUTPUT}.h265\" -c copy \"${FULLOUTPUT}.mp4\" 2>&1"
+log "${FFPROBE}"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
@@ -199,14 +199,8 @@ if [ -n "$ERROR" ]; then
 fi
 log "Validating DONE"
 
-log "Combine"
-scripts/combine.sh --input1 "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4" --input2 "${INPUT}" --audioflags "${AUDIOFLAGS}" --audiostreams "${AUDIOSTREAMS}" "${DOCKERFLAG}" --ffmpegimage "${FFMPEGIMAGE}"
-log "Combine DONE"
-
 log "Cleanup"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.log"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.log.cutree"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.h265"
-rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
-rm -f "${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
-log "Cleanuo DONE"
+log "Cleanup DONE"
