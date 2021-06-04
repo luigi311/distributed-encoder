@@ -1,9 +1,31 @@
 #!/usr/bin/env bash
 
+# exit when any command fails
+set -e
+# keep track of the last executed command
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+# echo an error message before exiting
+trap 'trap_die' EXIT
+
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 die() {
     printf '%s\n' "$1" >&2
     exit 1
+}
+
+log() {
+    printf '[%s] Combine: %s\n' "$(date)" "$1" >> "${LOGFILE}"
+}
+
+trap_die() {
+    EXIT_CODE="$?"
+    if [ "${EXIT_CODE}" -eq 0 ]; then
+        log "DONE"
+    else
+        MESSAGE="ERROR \"${last_command}\" command filed with exit code ${EXIT_CODE}."
+        echo "Combine: ${MESSAGE}"
+        log "${MESSAGE}"
+    fi
 }
 
 help() {
@@ -111,6 +133,8 @@ INPUT2DIRECTORY=$(dirname "$INPUT2")
 INPUT2FILE=$(basename "${INPUT2}")
 BASE2FILE=$(basename "${INPUT2}" | sed 's/\(.*\)\..*/\1/')
 
+LOGFILE="${INPUT2DIRECTORY}/${BASE2FILE}.log"
+
 FULLOUTPUT="${INPUT1DIRECTORY%/}/de_final_${BASE2FILE}.mkv"
 COMMAND="ffmpeg"
 
@@ -131,13 +155,19 @@ if [ -n "${DOCKER+x}" ]; then
     FULLOUTPUT="/videos/input1/de_final_${BASE2FILE}.mkv"
 fi
 
-BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT1}\" -i \"${INPUT2}\" ${FLAG} ${FULLOUTPUT}"
+log "Combining"
+BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT1}\" -i \"${INPUT2}\" ${FLAG} \"${FULLOUTPUT}\""
+log "${BASE}"
 eval "${BASE}"
+log "Combining DONE"
 
+log "Validating"
 FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
+log "${FFPROBE}"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then
     #rm -rf "${INPUTDIRECTORY}/${OUTPUTBASE:?}*"
     echo "$ERROR"
     die "${INPUT} failed"
 fi
+log "Validating DONE"

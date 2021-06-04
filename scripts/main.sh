@@ -16,7 +16,7 @@ die() {
 }
 
 log() {
-    printf '[%s] Av1an: %s\n' "$(date)" "$1" >> "${LOGFILE}"
+    printf '[%s] Main: %s\n' "$(date)" "$1" >> "${LOGFILE}"
 }
 
 trap_die() {
@@ -25,7 +25,7 @@ trap_die() {
         log "DONE"
     else
         MESSAGE="ERROR \"${last_command}\" command filed with exit code ${EXIT_CODE}."
-        echo "Av1an: ${MESSAGE}"
+        echo "Main: ${MESSAGE}"
         log "${MESSAGE}"
     fi
 }
@@ -53,9 +53,11 @@ EOF
 }
 
 OUTPUT="$(pwd)/output"
-ERROR=-1
 ENCODERIMAGE="masterofzen/av1an:master"
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
+AUDIOFLAGS="-c:a flac"
+AUDIOSTREAMS="0"
+ENCODER="av1an"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -73,28 +75,41 @@ while :; do
             fi
             ;;
         -t | --threads)
-            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
-            ERROR=1
+            if [ "$2" ]; then
+                THREADS="--threads $2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty option argument."
+            fi
             ;;
         -f | --flag)
             if [ "$2" ]; then
-                FLAG="$2"
+                FLAG="--flag \"$2\""
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
         --twopass)
-            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
-            ERROR=1
+            TWOPASS="--twopass"
             ;;
         --pass1)
-            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
-            ERROR=1
+            if [ "$2" ]; then
+                PASS1="--pass1 \"$2\""
+                TWOPASS="--twopass"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
             ;;
         --pass2)
-            echo "ERROR: $1 not supported in av1an, use --flag to set av1an flags"
-            ERROR=1
+            if [ "$2" ]; then
+                PASS2="--pass2 \"$2\""
+                TWOPASS="--twopass"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
             ;;
         --docker)
             DOCKER=1
@@ -111,6 +126,30 @@ while :; do
         --ffmpegimage)
             if [ "$2" ]; then
                 FFMPEGIMAGE="$2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --audioflags)
+            if [ "$2" ]; then
+                AUDIOFLAGS="$2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --audiostreams)
+            if [ "$2" ]; then
+                AUDIOSTREAMS="$2"
+                shift
+            else
+                die "ERROR: $1 requires a non-empty argument."
+            fi
+            ;;
+        --encoder)
+            if [ "$2" ]; then
+                ENCODER="$2"
                 shift
             else
                 die "ERROR: $1 requires a non-empty argument."
@@ -133,38 +172,37 @@ if [ -z "${INPUT+x}" ]; then
     die "Input not set"
 fi
 
-if [ "${ERROR}" -ne -1 ]; then
-    die ""
-fi
-
 INPUTDIRECTORY=$(dirname "${INPUT}")
 INPUTFILE=$(basename "${INPUT}")
 BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
 
-FULLOUTPUT="${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
-INPUTENCODE="${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
-COMMAND="av1an"
+# Prepare videos to ensure consistent encoding
+echo "Working on ${INPUTFILE}" > "${LOGFILE}"
+log "Preparing"
+PREPARE="scripts/prepare.sh --input \"${INPUT}\" ${DOCKERFLAG} --ffmpegimage \"${FFMPEGIMAGE}\""
+log "${PREPARE}"
+eval "${PREPARE}"
+log "Preparing DONE"
 
-if [ -n "${DOCKER+x}" ]; then
-    DOCKERRUN="docker run -v ${INPUTDIRECTORY}:/videos -w /videos --user $(id -u):$(id -g) -i --rm ${ENCODERIMAGE}"
-    DOCKERPROBE="docker run -v ${INPUTDIRECTORY}:/videos -w /videos --user $(id -u):$(id -g) -i --rm ${FFMPEGIMAGE}"
-    INPUTENCODE="/videos/de_prepared_${BASEFILE}.mkv"
-    FULLOUTPUT="/videos/de_encoded_${BASEFILE}.mkv"
-    COMMAND=""
-fi
-
-BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUTENCODE}\" --output_file \"${FULLOUTPUT}\" ${FLAG}"
-log "${BASE}"
-eval "${BASE}"
+# Encode
+log "Runing Encoder"
+ENCODE="scripts/${ENCODER}.sh --input \"${INPUT}\" ${THREADS} ${ENCODING} ${FLAG} ${TWOPASS} ${PASS1} ${PASS2} ${DOCKERFLAG} --encoderimage \"${ENCODERIMAGE}\" --ffmpegimage \"${FFMPEGIMAGE}\""
+log "${ENCODE}"
+eval "${ENCODE}"
 log "Encoding DONE"
 
-log "Validating encode"
-FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
-log "${FFPROBE}}"
-ERROR=$(eval "${FFPROBE}")
-if [ -n "$ERROR" ]; then
-    #rm -rf "${INPUTDIRECTORY}/${OUTPUTBASE:?}*"
-    die "${INPUT} failed"
-fi
-log "Validating DONE"
+# Combine encoded video with audio
+log "Combine"
+COMBINE="scripts/combine.sh --input1 \"${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv\" --input2 \"${INPUT}\" --audioflags \"${AUDIOFLAGS}\" --audiostreams \"${AUDIOSTREAMS}\" --ffmpegimage \"${FFMPEGIMAGE}\" ${DOCKERFLAG}"
+log "${COMBINE}"
+eval "${COMBINE}"
+log "Combine DONE"
+
+
+# Clearnup
+log "Cleanup"
+rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
+rm -f "${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
+rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
+log "Cleanup DONE"

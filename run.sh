@@ -223,4 +223,4 @@ if [ "${ENC_WORKERS}" -eq -1 ]; then
 fi
 
 echo "Starting encoding"
-find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/${ENCODER}.sh" --input "{}"  "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
+find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/.*/encode/*" ! -path "*/.*/split/*" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/main.sh" --input "{}" --encoder "${ENCODER}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
