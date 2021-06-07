@@ -31,6 +31,7 @@ Options:
     --ffmpegimage     [string]  Docker image to use for validation, prepare and combine, enables docker    (defualt luigi311/encoders-docker:latest)
     --audioflags      [string]  Flags to use when encoding audio during the combine stage                  (default -c:a flac)
     --audiostreams    [string]  Audio streams to keep and encode during hte combine stage, comma seperated (default 0)
+    --shared                    Do not transfer video to other servers, use with network storage           (default false)
 EOF
 )"
     echo "$help"
@@ -43,6 +44,7 @@ SUPPORTED_ENCODERS="x265:av1an"
 AUDIOFLAGS="-c:a flac"
 AUDIOSTREAMS="0"
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
+TRANSFERCHECK=1
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -170,6 +172,9 @@ while :; do
                 die "ERROR: $1 requires a non-empty argument."
             fi
             ;;
+        --shared)
+            TRANSFERCHECK=0
+            ;;
         --) # End of all options.
             shift
             break
@@ -222,5 +227,10 @@ if [ "${ENC_WORKERS}" -eq -1 ]; then
     ENC_WORKERS="${ENC_WORKERS}%"
 fi
 
+if [ "${TRANSFERCHECK}" -eq 1 ]; then
+   TRANSFER="--return {//}/de_final_{/.}.mkv --return {.}.log --cleanup --transferfile {} --transferfile scripts/main.sh --transferfile scripts/prepare.sh --transferfile scripts/combine.sh --transferfile scripts/${ENCODER}.sh"
+fi
+
 echo "Starting encoding"
-find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/.*/encode/*" ! -path "*/.*/split/*" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --joblog encoding.log $DISTRIBUTE $RESUME --bar "scripts/main.sh" --input "{}" --encoder "${ENCODER}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
+# shellcheck disable=SC2086
+find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/.*/encode/*" ! -path "*/.*/split/*" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --eta --group --joblog encoding.log $TRANSFER $DISTRIBUTE $RESUME "scripts/main.sh" --input "{}" --encoder "${ENCODER}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
