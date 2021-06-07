@@ -176,7 +176,7 @@ INPUTDIRECTORY=$(dirname "${INPUT}")
 INPUTFILE=$(basename "${INPUT}")
 BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
-TEMP="${INPUTDIRECTORY}/.av1an-$(md5sum ${INPUT} | awk '{ print $1 }')"
+TEMP="${INPUTDIRECTORY}/.av1an-$(md5sum "${INPUT}" | awk '{ print $1 }')"
 
 # Prepare videos to ensure consistent encoding
 echo "${HOSTNAME}: Working on ${INPUTFILE}" > "${LOGFILE}"

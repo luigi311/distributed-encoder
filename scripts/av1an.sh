@@ -144,7 +144,7 @@ LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
 
 FULLOUTPUT="${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
 INPUTENCODE="${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
-TEMP="${INPUTDIRECTORY}/.av1an-$(md5sum ${INPUT})"
+TEMP="${INPUTDIRECTORY}/.av1an-$(md5sum "${INPUT}")"
 COMMAND="av1an"
 
 if [ -n "${DOCKER+x}" ]; then
@@ -152,7 +152,7 @@ if [ -n "${DOCKER+x}" ]; then
     DOCKERPROBE="docker run -v ${INPUTDIRECTORY}:/videos -w /videos --user $(id -u):$(id -g) -i --rm ${FFMPEGIMAGE}"
     INPUTENCODE="/videos/de_prepared_${BASEFILE}.mkv"
     FULLOUTPUT="/videos/de_encoded_${BASEFILE}.mkv"
-    TEMP="/videos/.av1an-$(md5sum ${INPUT} | awk '{ print $1 }')"
+    TEMP="/videos/.av1an-$(md5sum "${INPUT}" | awk '{ print $1 }')"
     COMMAND=""
 fi
 
