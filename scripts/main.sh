@@ -200,7 +200,7 @@ log "${COMBINE}"
 eval "${COMBINE}"
 log "Combine DONE"
 
-# Clearnup
+# Cleanup
 log "Cleanup"
 log "Deleting: ${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
