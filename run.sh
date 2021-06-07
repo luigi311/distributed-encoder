@@ -232,4 +232,5 @@ if [ "${TRANSFERCHECK}" -eq 1 ]; then
 fi
 
 echo "Starting encoding"
-find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/.*/encode/*" ! -path "*/.*/split/*" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --bar --group --joblog encoding.log $TRANSFER $DISTRIBUTE $RESUME "scripts/main.sh" --input "{}" --encoder "${ENCODER}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
+# shellcheck disable=SC2086
+find "${INPUT}" -name "*.${EXTENSION}" ! -path "*/.*/encode/*" ! -path "*/.*/split/*" ! -path "*/de_final_*" ! -path "*/de_prepared_*" ! -path "*/de_encoded_*"  | parallel -j "${ENC_WORKERS}" --eta --group --joblog encoding.log $TRANSFER $DISTRIBUTE $RESUME "scripts/main.sh" --input "{}" --encoder "${ENCODER}" "${THREADS}" "${ENCODING}" "${FLAG}" "${TWOPASS}" "${PASS1}" "${PASS2}" "${DOCKER}" --encoderimage "\"${ENCODERIMAGE}\"" --ffmpegimage "\"${FFMPEGIMAGE}\"" --audioflags "\"${AUDIOFLAGS}\"" --audiostreams "\"${AUDIOSTREAMS}\""
