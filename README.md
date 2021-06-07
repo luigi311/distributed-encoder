@@ -21,7 +21,7 @@ Example:
 ```bash
 Options:
     -h/--help                   Print this help screen
-    -i/--input        [file]    Video source to use                                                        (default video.mkv)
+    -i/--input        [file]     Video source to use                                                        (default video.mkv)
     -e/--enc          [string]  Encoder to use                                                             (default av1an)
     --encworkers      [number]  Amount of encoders to run in parallel on each machine                      (default encoding threads/cpu threads)
     -t/--threads      [number]  Amount of threads to use in encoder                                        (default av1an:nproc, x265:4)
@@ -29,13 +29,13 @@ Options:
     --twopass                   Enable two pass encoding for x265                                          (default false)
     --pass1           [string]  Flags to use for first pass when encoding, enables twopass
     --pass2           [string]  Flags to use for second pass when encoding, enables twopass
-    -f/--flag         [string]  Flags for encoder to use
-    --distribute                Parallelize across multiple computers based on ~/.parallel/sshloginfile    (default false)
+    -f/--flag          [string]  Flags for encoder to use
+    --distribute                Parallelize across multiple computers based on ~/.parallel/sshloginfile     (default false)
     --resume                    Resume option for parallel, will use encoding.log and vmaf.log             (default false)
     --docker                    Enable the use of docker to run all commands                               (default false)
     --encoderimage    [string]  Docker image to use for encoder, enables docker                            (default av1an:masterofzen/av1an:master,x265:luigi311/encoders-docker:latest)
-    --ffmpegimage     [string]  Docker image to use for validation, prepare and combine, enables docker    (defualt luigi311/encoders-docker:latest)
-    --audioflags      [string]  Flags to use when encoding audio during the combine stage                  (default -c:a flac)
+    --ffmpegimage      [string]  Docker image to use for validation, prepare and combine, enables docker    (defualt luigi311/encoders-docker:latest)
+    --audioflags       [string]  Flags to use when encoding audio during the combine stage                  (default -c:a flac)
     --audiostreams    [string]  Audio streams to keep and encode during hte combine stage, comma seperated (default 0)
     --shared                    Do not transfer video to other servers, use with network storage           (default false)
 ```
