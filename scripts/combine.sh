@@ -50,7 +50,6 @@ EOF
             echo "$help"
 }
 
-OUTPUT="$(pwd)/output"
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
 AUDIOFLAGS="-c:a flac"
 AUDIOSTREAMS="0"
@@ -127,7 +126,6 @@ fi
 
 INPUT1DIRECTORY=$(dirname "$INPUT1")
 INPUT1FILE=$(basename "${INPUT1}")
-BASE1FILE=$(basename "${INPUT1}" | sed 's/\(.*\)\..*/\1/')
 
 INPUT2DIRECTORY=$(dirname "$INPUT2")
 INPUT2FILE=$(basename "${INPUT2}")

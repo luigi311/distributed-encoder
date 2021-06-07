@@ -50,14 +50,11 @@ EOF
             echo "$help"
 }
 
-OUTPUT="$(pwd)/output"
 THREADS=-1
 TWOPASS=-1
 ERROR=-1
 ENCODERIMAGE="masterofzen/av1an:master"
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
-AUDIOFLAGS="-c:a flac"
-AUDIOSTREAMS="0"
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -113,7 +110,6 @@ while :; do
             ;;
         --docker)
             DOCKER=1
-            DOCKERFLAG="--docker"
             ;;
         --encoderimage)
             if [ "$2" ]; then
@@ -162,7 +158,6 @@ if [ "${TWOPASS}" -eq 1 ] && [ -n "${FLAG+x}" ]; then
 fi
 
 INPUTDIRECTORY=$(dirname "$INPUT")
-INPUTFILE=$(basename "${INPUT}")
 BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
 
