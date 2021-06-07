@@ -176,6 +176,7 @@ INPUTDIRECTORY=$(dirname "${INPUT}")
 INPUTFILE=$(basename "${INPUT}")
 BASEFILE=$(basename "${INPUT}" | sed 's/\(.*\)\..*/\1/')
 LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
+TEMP="${INPUTDIRECTORY}/.av1an-$(md5sum ${INPUT} | awk '{ print $1 }')"
 
 # Prepare videos to ensure consistent encoding
 echo "Working on ${INPUTFILE}" > "${LOGFILE}"
@@ -199,10 +200,17 @@ log "${COMBINE}"
 eval "${COMBINE}"
 log "Combine DONE"
 
-
 # Clearnup
 log "Cleanup"
+log "Deleting: ${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mp4"
+
+log "Deleting: ${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
 rm -f "${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
+
+log "Deleting: ${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
+
+log "Deleting: ${TEMP:?}"
+rm -rf "${TEMP:?}"
 log "Cleanup DONE"
