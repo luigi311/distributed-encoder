@@ -52,7 +52,6 @@ EOF
             echo "$help"
 }
 
-OUTPUT="$(pwd)/output"
 ENCODERIMAGE="masterofzen/av1an:master"
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
 AUDIOFLAGS="-c:a flac"
@@ -112,7 +111,6 @@ while :; do
             fi
             ;;
         --docker)
-            DOCKER=1
             DOCKERFLAG="--docker"
             ;;
         --encoderimage)

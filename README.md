@@ -1,11 +1,13 @@
 # distributed-encoder
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/e821a66282354c2f827ad23823b63cce)](https://www.codacy.com/gl/Luigi311/distributed-encoder/dashboard?utm_source=gitlab.com&amp;utm_medium=referral&amp;utm_content=Luigi311/distributed-encoder&amp;utm_campaign=Badge_Grade)  
+
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/e821a66282354c2f827ad23823b63cce)](https://www.codacy.com/gl/Luigi311/distributed-encoder/dashboard?utm_source=gitlab.com&utm_medium=referral&utm_content=Luigi311/distributed-encoder&utm_campaign=Badge_Grade)  
 
 Mass encode videos using gnu parallel to automate mass folder encoding and distributing across machines
 
 ## supported encoders
-- av1an
-- x265
+
+-   av1an
+-   x265
 
 ## Usage
 

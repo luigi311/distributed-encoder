@@ -49,7 +49,6 @@ EOF
             echo "$help"
 }
 
-OUTPUT="$(pwd)/output"
 ERROR=-1
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
 
