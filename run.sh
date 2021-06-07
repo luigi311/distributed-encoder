@@ -31,6 +31,7 @@ Options:
     --ffmpegimage     [string]  Docker image to use for validation, prepare and combine, enables docker    (defualt luigi311/encoders-docker:latest)
     --audioflags      [string]  Flags to use when encoding audio during the combine stage                  (default -c:a flac)
     --audiostreams    [string]  Audio streams to keep and encode during hte combine stage, comma seperated (default 0)
+    --shared                    Do not transfer video to other servers, use with network storage           (default false)
 EOF
 )"
     echo "$help"
@@ -43,7 +44,7 @@ SUPPORTED_ENCODERS="x265:av1an"
 AUDIOFLAGS="-c:a flac"
 AUDIOSTREAMS="0"
 FFMPEGIMAGE="luigi311/encoders-docker:latest"
-TRANSFER=1
+TRANSFERCHECK=1
 
 # Source: http://mywiki.wooledge.org/BashFAQ/035
 while :; do
@@ -172,7 +173,7 @@ while :; do
             fi
             ;;
         --shared)
-            TRANSFER=0
+            TRANSFERCHECK=0
             ;;
         --) # End of all options.
             shift
@@ -226,8 +227,7 @@ if [ "${ENC_WORKERS}" -eq -1 ]; then
     ENC_WORKERS="${ENC_WORKERS}%"
 fi
 
-if [ "${TRANSFER}" -eq 1 ]; then
-   
+if [ "${TRANSFERCHECK}" -eq 1 ]; then
    TRANSFER="--return {//}/de_final_{/.}.mkv --return {.}.log --cleanup --transferfile {} --transferfile scripts/main.sh --transferfile scripts/prepare.sh --transferfile scripts/combine.sh --transferfile scripts/${ENCODER}.sh"
 fi
 

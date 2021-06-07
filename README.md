@@ -13,7 +13,7 @@ Mass encode videos using gnu parallel to automate mass folder encoding and distr
 Usage:
     ./run.sh -i {Folder location} {Options}
 Example:
-    ./run.sh -i /home/luigi311/Videos --extension mkv -enc av1an -f "-enc x265 -v ' -p slower --crf 25 -D 10 -F 2 ' --target_quality 94 --vmaf --mkvmerge" --docker --distribute --audioflags "-c:a aac -b:a 192k" --audiostreams "0,2"
+    ./run.sh -i /home/luigi311/Videos --extension mkv -enc av1an -f "-e x265 -v ' -p slower --crf 25 -D 10 -F 2 ' --target-quality 94 --vmaf --mkvmerge" --docker --distribute --audioflags "-c:a aac -b:a 192k" --audiostreams "0,2"
 ```
 
 ### Options
@@ -37,4 +37,5 @@ Options:
     --ffmpegimage     [string]  Docker image to use for validation, prepare and combine, enables docker    (defualt luigi311/encoders-docker:latest)
     --audioflags      [string]  Flags to use when encoding audio during the combine stage                  (default -c:a flac)
     --audiostreams    [string]  Audio streams to keep and encode during hte combine stage, comma seperated (default 0)
+    --shared                    Do not transfer video to other servers, use with network storage           (default false)
 ```

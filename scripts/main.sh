@@ -179,7 +179,7 @@ LOGFILE="${INPUTDIRECTORY}/${BASEFILE}.log"
 TEMP="${INPUTDIRECTORY}/.av1an-$(md5sum ${INPUT} | awk '{ print $1 }')"
 
 # Prepare videos to ensure consistent encoding
-echo "Working on ${INPUTFILE}" > "${LOGFILE}"
+echo "${HOSTNAME}: Working on ${INPUTFILE}" > "${LOGFILE}"
 log "Preparing"
 PREPARE="scripts/prepare.sh --input \"${INPUT}\" ${DOCKERFLAG} --ffmpegimage \"${FFMPEGIMAGE}\""
 log "${PREPARE}"
