@@ -133,9 +133,6 @@ BASE2FILE=$(basename "${INPUT2}" | sed 's/\(.*\)\..*/\1/')
 
 LOGFILE="${INPUT2DIRECTORY}/${BASE2FILE}.log"
 
-FULLOUTPUT="${INPUT1DIRECTORY%/}/de_final_${BASE2FILE}.mkv"
-COMMAND="ffmpeg"
-
 IFS=',' read -r -a AUDIOSTREAMS <<< "$AUDIOSTREAMS"
 AUDIOMAP=""
 for STREAM in "${AUDIOSTREAMS[@]}"
@@ -143,24 +140,31 @@ do
     AUDIOMAP="${AUDIOMAP} -map 1:a:${STREAM}?"
 done
 
-FLAG=" -y -hide_banner -loglevel error -map 0:v:0 ${AUDIOMAP} -map 1:s? -map 1:d? -map 1:t? -max_interleave_delta 0 -c copy ${AUDIOFLAGS}"
+FULLOUTPUT="${INPUT1DIRECTORY%/}/de_final_${BASE2FILE}"
+FLAG=" -y -hide_banner -loglevel error ${AUDIOMAP} -map 1:s? -map 1:d? -map 1:t? -max_interleave_delta 0 -c copy ${AUDIOFLAGS}"
 
 if [ -n "${DOCKER+x}" ]; then
     DOCKERRUN="docker run -v ${INPUT1DIRECTORY%/}:/videos/input1 -v ${INPUT2DIRECTORY%/}:/videos/input2  -w /videos --user $(id -u):$(id -g) -i --rm ${FFMPEGIMAGE}"
     DOCKERPROBE="docker run -v ${INPUT1DIRECTORY%/}:/videos/input1 -w /videos/input1 --user $(id -u):$(id -g) -i --rm ${FFMPEGIMAGE}"
     INPUT1="/videos/input1/${INPUT1FILE}"
     INPUT2="/videos/input2/${INPUT2FILE}"
-    FULLOUTPUT="/videos/input1/de_final_${BASE2FILE}.mkv"
+    FULLOUTPUT="/videos/input1/de_final_${BASE2FILE}"
 fi
 
+log "Encoding Audio"
+BASE="${DOCKERRUN} ffmpeg -i \"${INPUT1}\" -i \"${INPUT2}\" ${FLAG} \"${FULLOUTPUT}.mka\""
+log "${BASE}"
+eval "${BASE}"
+log "Encoding Audio DONE"
+
 log "Combining"
-BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUT1}\" -i \"${INPUT2}\" ${FLAG} \"${FULLOUTPUT}\""
+BASE="${DOCKERRUN} mkvmerge -o \"${FULLOUTPUT}.mkv\" --quiet -A \"${INPUT1}\" \"${FULLOUTPUT}.mka\""
 log "${BASE}"
 eval "${BASE}"
 log "Combining DONE"
 
 log "Validating"
-FFPROBE="${DOCKERPROBE} ffprobe -hide_banner -loglevel error -i \"${FULLOUTPUT}\" 2>&1"
+FFPROBE="${DOCKERPROBE} ffmpeg -v error -i \"${FULLOUTPUT}.mkv\" -f null - 2>&1"
 log "${FFPROBE}"
 ERROR=$(eval "${FFPROBE}")
 if [ -n "$ERROR" ]; then

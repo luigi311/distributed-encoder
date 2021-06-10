@@ -209,6 +209,9 @@ rm -f "${INPUTDIRECTORY}/de_prepared_${BASEFILE}.mkv"
 log "Deleting: ${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
 rm -f "${INPUTDIRECTORY}/de_encoded_${BASEFILE}.mkv"
 
+log "Deleting: ${INPUTDIRECTORY}/de_final_${BASEFILE}.mka"
+rm -f "${INPUTDIRECTORY}/de_final_${BASEFILE}.mka"
+
 log "Deleting: ${TEMP:?}"
 rm -rf "${TEMP:?}"
 log "Cleanup DONE"
