@@ -153,7 +153,7 @@ if [ -n "${DOCKER+x}" ]; then
     COMMAND=""
 fi
 
-BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUTENCODE}\" --output-file \"${FULLOUTPUT}\" --temp \"${TEMP}\" --keep ${FLAG}"
+BASE="${DOCKERRUN} ${COMMAND} -i \"${INPUTENCODE}\" -o \"${FULLOUTPUT}\" --temp \"${TEMP}\" --keep ${FLAG}"
 log "${BASE}"
 eval "${BASE}"
 log "Encoding DONE"
